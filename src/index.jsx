@@ -21,6 +21,7 @@ const CoBuySDK = {
       const height = ad.dataset.height || "250";
       const apiBase = ad.dataset.apiBase || this.config.apiBaseUrl;
       const clickTracker = ad.dataset.clickTracker;
+      const imageUrl = ad.dataset.image; // 🆕 optional direct image
 
       if (!apiBase) {
         console.error("[CoBuySDK] Missing apiBase in ad tag");
@@ -28,13 +29,18 @@ const CoBuySDK = {
       }
 
       try {
-        const creative = await this.fetchCreative(apiBase, campaignId);
-        if (!creative || !creative.url) {
-          console.error("[CoBuySDK] No creative returned from API");
-          return;
+        let creativeUrl = imageUrl;
+        // If no direct image provided, fetch creative from API
+        if (!creativeUrl) {
+          const creative = await this.fetchCreative(apiBase, campaignId);
+          if (!creative || !creative.url) {
+            console.error("[CoBuySDK] No creative returned from API");
+            return;
+          }
+          creativeUrl = creative.url;
         }
 
-        this.renderCreative(ad, creative.url, width, height, clickTracker);
+        this.renderCreative(ad, creativeUrl, width, height, clickTracker);
 
         if (this.config.allowImpression) {
           this.emitImpression({ apiBase, campaignId, brand, width, height });
@@ -55,30 +61,54 @@ const CoBuySDK = {
   },
 
   renderCreative(container, creativeUrl, width, height, clickTracker) {
+    // 🧹 Reset and style the ad container
     container.innerHTML = "";
     container.style.position = "relative";
     container.style.display = "inline-block";
     container.style.width = `${width}px`;
     container.style.height = `${height}px`;
 
-    const iframe = document.createElement("iframe");
-    iframe.src = creativeUrl;
-    iframe.width = width;
-    iframe.height = height;
-    iframe.frameBorder = "0";
-    iframe.scrolling = "no";
-    iframe.style.border = "none";
-    container.appendChild(iframe);
-  
-    // Set up click tracking
-    const clickUrl = `${this.config.apiBaseUrl}/api/v1/tracking/click?src=cobuy&cid=${encodeURIComponent(
-      container.dataset.campaign
-    )}&crid=${encodeURIComponent(width + "x" + height)}&pub=web&plc=banner&dest=${encodeURIComponent(
-      clickTracker || "https://google.com"
-    )}&clid=${Date.now()}`;
-  
+    // 🖼️ Detect if creative is an image or iframe
+    const isImage = /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(creativeUrl);
+    let creativeEl;
+
+    if (isImage) {
+      creativeEl = document.createElement("img");
+      creativeEl.src = creativeUrl;
+      creativeEl.width = width;
+      creativeEl.height = height;
+      creativeEl.style.border = "none";
+      creativeEl.style.display = "block";
+    } else {
+      creativeEl = document.createElement("iframe");
+      creativeEl.src = creativeUrl;
+      creativeEl.width = width;
+      creativeEl.height = height;
+      creativeEl.frameBorder = "0";
+      creativeEl.scrolling = "no";
+      creativeEl.style.border = "none";
+    }
+
+    container.appendChild(creativeEl);
+
+    // 📦 Extract data for tracking
+    const campaignId = container.dataset.campaign;
+    const apiBase = this.config.apiBaseUrl || container.dataset.apiBase;
+    const destination = clickTracker || "https://google.com"; // fallback
+
+    // 🧭 Build your own click-tracking redirect
+    // Note: do NOT encode macros like %%CLICK_URL%%
+    const encodedDest = destination.includes("%%CLICK_URL%%")
+      ? destination
+      : encodeURIComponent(destination);
+
+    const myClickUrl = `${apiBase}/trk/click?src=cobuy&cid=${encodeURIComponent(
+      campaignId
+    )}&crid=${encodeURIComponent(width + "x" + height)}&pub=web&plc=banner&dest=${encodedDest}&clid=${Date.now()}`;
+
+    // 🖱️ Overlay clickable area
     const link = document.createElement("a");
-    link.href = clickUrl;
+    link.href = myClickUrl;
     link.target = "_blank";
     link.rel = "noopener";
     Object.assign(link.style, {
@@ -88,10 +118,15 @@ const CoBuySDK = {
       width: "100%",
       height: "100%",
       textDecoration: "none",
+      cursor: "pointer",
     });
-    link.addEventListener("click", () =>
-      this.emitEvent("click", { campaign_id: container.dataset.campaign })
-    );
+
+    // 📊 Fire local analytics + console log
+    link.addEventListener("click", () => {
+      this.emitEvent("click", { campaign_id: campaignId });
+      console.log("[CoBuySDK] Click fired →", myClickUrl);
+    });
+
     container.appendChild(link);
   },
 
