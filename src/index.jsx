@@ -69,31 +69,36 @@ const CoBuySDK = {
     iframe.scrolling = "no";
     iframe.style.border = "none";
     container.appendChild(iframe);
-
-    if (clickTracker) {
-      const link = document.createElement("a");
-      link.href = clickTracker;
-      link.target = "_blank";
-      link.rel = "noopener";
-      Object.assign(link.style, {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        textDecoration: "none",
-      });
-      link.addEventListener("click", () =>
-        this.emitEvent("click", { campaign_id: campaignId })
-      );
-      container.appendChild(link);
-    }
+  
+    // Set up click tracking
+    const clickUrl = `${this.config.apiBaseUrl}/api/v1/tracking/click?src=cobuy&cid=${encodeURIComponent(
+      container.dataset.campaign
+    )}&crid=${encodeURIComponent(width + "x" + height)}&pub=web&plc=banner&dest=${encodeURIComponent(
+      clickTracker || "https://google.com"
+    )}&clid=${Date.now()}`;
+  
+    const link = document.createElement("a");
+    link.href = clickUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    Object.assign(link.style, {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      textDecoration: "none",
+    });
+    link.addEventListener("click", () =>
+      this.emitEvent("click", { campaign_id: container.dataset.campaign })
+    );
+    container.appendChild(link);
   },
 
   emitImpression({ apiBase, campaignId, brand, width, height }) {
-    const impUrl = `${apiBase}/imp?cid=${campaignId}&crid=${width}x${height}&brand=${encodeURIComponent(
-      brand
-    )}&cb=${Date.now()}`;
+    const impUrl = `${apiBase}/api/v1/tracking/imp?src=cobuy&cid=${encodeURIComponent(
+      campaignId
+    )}&crid=${encodeURIComponent(width + "x" + height)}&pub=web&plc=banner&cb=${Date.now()}`;
     const img = new Image(1, 1);
     img.src = impUrl;
     img.style = "position:absolute;left:-9999px;top:-9999px;";
