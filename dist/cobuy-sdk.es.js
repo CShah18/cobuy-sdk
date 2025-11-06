@@ -1,4 +1,4 @@
-const c = {
+const d = {
   config: {
     apiBaseUrl: "",
     allowImpression: !0
@@ -9,82 +9,85 @@ const c = {
   async loadAds() {
     const e = document.querySelectorAll(".cobuy-ad");
     e.length && e.forEach(async (t) => {
-      const n = t.dataset.campaign || "unknown", o = t.dataset.brand || "", a = t.dataset.width || "300", s = t.dataset.height || "250", i = t.dataset.apiBase || this.config.apiBaseUrl, d = t.dataset.clickTracker;
-      if (!i) {
+      const o = t.dataset.campaign || "unknown", n = t.dataset.brand || "", a = t.dataset.width || "300", i = t.dataset.height || "250", s = t.dataset.apiBase || this.config.apiBaseUrl, r = t.dataset.clickTracker;
+      if (!s) {
         console.error("[CoBuySDK] Missing apiBase in ad tag");
         return;
       }
       try {
-        const r = await this.fetchCreative(i, n);
-        if (!r || !r.url) {
+        const c = await this.fetchCreative(s, o);
+        if (!c || !c.url) {
           console.error("[CoBuySDK] No creative returned from API");
           return;
         }
-        this.renderCreative(t, r.url, a, s, d), this.config.allowImpression && this.emitImpression({ apiBase: i, campaignId: n, brand: o, width: a, height: s });
-      } catch (r) {
-        console.error("[CoBuySDK] Error loading creative:", r);
+        this.renderCreative(t, c.url, a, i, r), this.config.allowImpression && this.emitImpression({ apiBase: s, campaignId: o, brand: n, width: a, height: i });
+      } catch (c) {
+        console.error("[CoBuySDK] Error loading creative:", c);
       }
     });
   },
   async fetchCreative(e, t) {
-    const n = `${e}/api/v1/creative?cid=${encodeURIComponent(
+    const o = `${e}/api/v1/creative?cid=${encodeURIComponent(
       t
-    )}&cb=${Date.now()}`, o = await fetch(n);
-    if (!o.ok) throw new Error(`Creative fetch failed: ${o.status}`);
-    return o.json();
+    )}&cb=${Date.now()}`, n = await fetch(o);
+    if (!n.ok) throw new Error(`Creative fetch failed: ${n.status}`);
+    return n.json();
   },
-  renderCreative(e, t, n, o, a) {
-    e.innerHTML = "", e.style.position = "relative", e.style.display = "inline-block", e.style.width = `${n}px`, e.style.height = `${o}px`;
-    const s = document.createElement("iframe");
-    if (s.src = t, s.width = n, s.height = o, s.frameBorder = "0", s.scrolling = "no", s.style.border = "none", e.appendChild(s), a) {
-      const i = document.createElement("a");
-      i.href = a, i.target = "_blank", i.rel = "noopener", Object.assign(i.style, {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        textDecoration: "none"
-      }), i.addEventListener(
-        "click",
-        () => this.emitEvent("click", { campaign_id: campaignId })
-      ), e.appendChild(i);
-    }
+  renderCreative(e, t, o, n, a) {
+    e.innerHTML = "", e.style.position = "relative", e.style.display = "inline-block", e.style.width = `${o}px`, e.style.height = `${n}px`;
+    const i = document.createElement("iframe");
+    i.src = t, i.width = o, i.height = n, i.frameBorder = "0", i.scrolling = "no", i.style.border = "none", e.appendChild(i);
+    const s = `${this.config.apiBaseUrl}/api/v1/tracking/click?src=cobuy&cid=${encodeURIComponent(
+      e.dataset.campaign
+    )}&crid=${encodeURIComponent(o + "x" + n)}&pub=web&plc=banner&dest=${encodeURIComponent(
+      a || "https://google.com"
+    )}&clid=${Date.now()}`, r = document.createElement("a");
+    r.href = s, r.target = "_blank", r.rel = "noopener", Object.assign(r.style, {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      textDecoration: "none"
+    }), r.addEventListener(
+      "click",
+      () => this.emitEvent("click", { campaign_id: e.dataset.campaign })
+    ), e.appendChild(r);
   },
-  emitImpression({ apiBase: e, campaignId: t, brand: n, width: o, height: a }) {
-    const s = `${e}/imp?cid=${t}&crid=${o}x${a}&brand=${encodeURIComponent(
-      n
-    )}&cb=${Date.now()}`, i = new Image(1, 1);
-    i.src = s, i.style = "position:absolute;left:-9999px;top:-9999px;", document.body.appendChild(i), console.log("[CoBuySDK] Impression fired:", s);
+  emitImpression({ apiBase: e, campaignId: t, brand: o, width: n, height: a }) {
+    const i = `${e}/api/v1/tracking/imp?src=cobuy&cid=${encodeURIComponent(
+      t
+    )}&crid=${encodeURIComponent(n + "x" + a)}&pub=web&plc=banner&cb=${Date.now()}`, s = new Image(1, 1);
+    s.src = i, s.style = "position:absolute;left:-9999px;top:-9999px;", document.body.appendChild(s), console.log("[CoBuySDK] Impression fired:", i);
   },
   emitEvent(e, t = {}) {
-    const n = `${this.config.apiBaseUrl}/events`, o = {
+    const o = `${this.config.apiBaseUrl}/events`, n = {
       event_type: e,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...t
     };
-    fetch(n, {
+    fetch(o, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(o)
+      body: JSON.stringify(n)
     }).catch((a) => console.error("[CoBuySDK] Event error:", a.message));
   },
   createShareLinks(e, t = {}) {
-    const n = this.addUTMParams(e, t), o = encodeURIComponent(n);
+    const o = this.addUTMParams(e, t), n = encodeURIComponent(o);
     return {
-      whatsapp: `https://wa.me/?text=${o}`,
-      sms: `sms:?body=${o}`,
-      copy: n
+      whatsapp: `https://wa.me/?text=${n}`,
+      sms: `sms:?body=${n}`,
+      copy: o
     };
   },
   addUTMParams(e, t = {}) {
-    const n = new URLSearchParams(t).toString();
-    if (!n) return e;
-    const o = e.includes("?") ? "&" : "?";
-    return `${e}${o}${n}`;
+    const o = new URLSearchParams(t).toString();
+    if (!o) return e;
+    const n = e.includes("?") ? "&" : "?";
+    return `${e}${n}${o}`;
   }
 };
-typeof window < "u" && (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", () => c.init()) : c.init(), window.CoBuySDK = c);
+typeof window < "u" && (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", () => d.init()) : d.init(), window.CoBuySDK = d);
 export {
-  c as default
+  d as default
 };
